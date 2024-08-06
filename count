@@ -1,0 +1,83 @@
+#!/bin/bash
+#SBATCH -A pccr
+#SBATCH -t 1:00:00
+#SBATCH -N 1
+#SBATCH -n 4
+#SBATCH --mem=16G
+#SBATCH --job-name=ATACseq_correlation_empty
+#SBATCH --mail-type=FAIL,BEGIN,END
+#SBATCH --error=correlation_empty-%J.err
+#SBATCH --output=correlation_empty-%J.out
+
+module --force purge
+module load biocontainers
+module load deeptools
+
+# Define paths
+output_dir=/depot/edykhui/data/ming/atac_seq/rcc4_peaks_shift-100/output
+bam_dir=/depot/edykhui/data/ming/atac_seq/shifted_bam
+
+# Create output directory
+mkdir -p $output_dir
+
+# Summarize coverage for the Empty condition BAM files
+multiBamSummary bins -b $bam_dir/A_RCC4_Empty_1.shifted.sorted.bam $bam_dir/A_RCC4_Empty_2.shifted.sorted.bam $bam_dir/A_RCC4_Empty_3.shifted.sorted.bam \
+    --numberOfProcessors 4 \
+    --binSize 10000 \
+    --outRawCounts $output_dir/empty_counts.tab \
+    --outFileName $output_dir/empty_results.npz
+
+# Calculate pairwise correlations and plot heatmap for the Empty condition
+plotCorrelation -in $output_dir/empty_results.npz \
+    --corMethod spearman \
+    --skipZeros \
+    --plotTitle "Spearman Correlation of Empty Condition Replicates" \
+    --whatToPlot heatmap \
+    --colorMap RdYlBu \
+    --plotNumbers \
+    -o $output_dir/heatmap_SpearmanCorr_Empty.png \
+    --outFileCorMatrix $output_dir/empty_correlation_matrix.tab
+
+########### explanation of correalation
+Correlation measures the relationship between two variables and tells us how one variable changes as the other changes. In the context of ATAC-seq data, we calculate the correlation between the read coverages of different samples across the genome. Here’s a step-by-step explanation of how the correlation is calculated:
+
+Step-by-Step Calculation of Correlation
+Binning the Genome:
+
+The genome is divided into equal-sized bins (e.g., 10,000 base pairs each). This helps in breaking down the genome into manageable segments for analysis.
+For each bin, the number of reads mapping to that bin is counted for each sample.
+Creating a Coverage Matrix:
+
+A matrix is created where each row corresponds to a genomic bin and each column corresponds to a sample.
+The entries in the matrix are the read counts for each sample in each bin.
+Normalization (optional but common):
+
+The read counts may be normalized to account for differences in sequencing depth between samples. This ensures that the correlation reflects biological differences rather than technical biases.
+Calculating Pairwise Correlations:
+
+For each pair of samples, the correlation of their read counts across all bins is calculated.
+Common correlation methods include Pearson and Spearman correlations:
+Pearson Correlation measures the linear relationship between two sets of data.
+Spearman Correlation measures the monotonic relationship (i.e., how well the relationship between two sets of data can be described using a monotonic function) and is more robust to outliers and non-linear relationships.
+Detailed Calculation for Spearman Correlation
+Here’s how the Spearman correlation is calculated:
+
+Rank Transformation:
+
+For each sample, the read counts across bins are ranked. If two bins have the same count, their ranks are averaged.
+This transforms the original data to ranks.
+Difference in Ranks:
+
+For each bin, the difference between the ranks of the two samples being compared is calculated.
+Sum of Squared Rank Differences:
+
+The square of each rank difference is computed and then summed up across all bins.
+Spearman Correlation Formula:
+
+###########
+
+
+
+
+
+
